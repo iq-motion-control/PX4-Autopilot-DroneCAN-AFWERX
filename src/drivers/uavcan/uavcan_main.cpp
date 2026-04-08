@@ -84,6 +84,7 @@ UavcanNode::UavcanNode(uavcan::ICanDriver &can_driver, uavcan::ISystemClock &sys
 	_beep_controller(_node),
 	_esc_controller(_node),
 	_servo_controller(_node),
+	_array_command_controller(_node),
 	_hardpoint_controller(_node),
 	_safety_state_controller(_node),
 	_log_message_controller(_node),
@@ -105,6 +106,7 @@ UavcanNode::UavcanNode(uavcan::ICanDriver &can_driver, uavcan::ISystemClock &sys
 
 	_mixing_interface_esc.mixingOutput().setMaxTopicUpdateRate(1000000 / UavcanEscController::MAX_RATE_HZ);
 	_mixing_interface_servo.mixingOutput().setMaxTopicUpdateRate(1000000 / UavcanServoController::MAX_RATE_HZ);
+	_mixing_interface_array_command.mixingOutput().setMaxTopicUpdateRate(1000000 / UavcanArrayCommandController::MAX_RATE_HZ);
 }
 
 UavcanNode::~UavcanNode()
@@ -397,6 +399,7 @@ UavcanNode::update_params()
 {
 	_mixing_interface_esc.updateParams();
 	_mixing_interface_servo.updateParams();
+	_mixing_interface_array_command.updateParams();
 }
 
 int
@@ -431,6 +434,7 @@ UavcanNode::start(uavcan::NodeID node_id, uint32_t bitrate)
 	_instance->ScheduleOnInterval(ScheduleIntervalMs * 1000);
 	_instance->_mixing_interface_esc.ScheduleNow();
 	_instance->_mixing_interface_servo.ScheduleNow();
+	_instance->_mixing_interface_array_command.ScheduleNow();
 
 	return OK;
 }
@@ -501,6 +505,7 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 
 	// Actuators
 	ret = _esc_controller.init();
+	_array_command_controller.init();
 
 	if (ret < 0) {
 		return ret;
@@ -925,6 +930,10 @@ UavcanNode::Run()
 		_mixing_interface_esc.ScheduleClear();
 		_mixing_interface_servo.mixingOutput().unregister();
 		_mixing_interface_servo.ScheduleClear();
+
+		_mixing_interface_array_command.mixingOutput().unregister();
+		_mixing_interface_array_command.ScheduleClear();
+
 		ScheduleClear();
 		_instance = nullptr;
 	}
@@ -968,6 +977,21 @@ bool UavcanMixingInterfaceServo::updateOutputs(bool stop_motors, uint16_t output
 }
 
 void UavcanMixingInterfaceServo::Run()
+{
+	pthread_mutex_lock(&_node_mutex);
+	_mixing_output.update();
+	_mixing_output.updateSubscriptions(false);
+	pthread_mutex_unlock(&_node_mutex);
+}
+
+bool UavcanMixingInterfaceArrayCommand::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigned num_outputs,
+		unsigned num_control_groups_updated)
+{
+	_array_command_controller.update_outputs(stop_motors, outputs, num_outputs);
+	return true;
+}
+
+void UavcanMixingInterfaceArrayCommand::Run()
 {
 	pthread_mutex_lock(&_node_mutex);
 	_mixing_output.update();

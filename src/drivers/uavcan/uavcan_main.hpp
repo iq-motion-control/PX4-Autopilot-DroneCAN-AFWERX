@@ -49,6 +49,8 @@
 #include "actuators/esc.hpp"
 #include "actuators/hardpoint.hpp"
 #include "actuators/servo.hpp"
+#include "actuators/array_command.hpp"
+
 #include "allocator.hpp"
 #include "arming_status.hpp"
 #include "beep.hpp"
@@ -113,6 +115,7 @@ private:
 	pthread_mutex_t &_node_mutex;
 	UavcanEscController &_esc_controller;
 	MixingOutput _mixing_output{"UAVCAN_EC", UavcanEscController::MAX_ACTUATORS, *this, MixingOutput::SchedulingPolicy::Auto, false, false};
+	MixingOutput _mixing_output_test{"UAVCAN_AC", UavcanEscController::MAX_ACTUATORS, *this, MixingOutput::SchedulingPolicy::Auto, false, false};
 };
 
 /**
@@ -142,6 +145,28 @@ private:
 	pthread_mutex_t &_node_mutex;
 	UavcanServoController &_servo_controller;
 	MixingOutput _mixing_output{"UAVCAN_SV", UavcanServoController::MAX_ACTUATORS, *this, MixingOutput::SchedulingPolicy::Auto, false, false};
+};
+
+class UavcanMixingInterfaceArrayCommand : public OutputModuleInterface
+{
+public:
+	UavcanMixingInterfaceArrayCommand(pthread_mutex_t &node_mutex, UavcanArrayCommandController &array_command_controller)
+		: OutputModuleInterface(MODULE_NAME "-actuators-array-command", px4::wq_configurations::uavcan),
+		  _node_mutex(node_mutex),
+		  _array_command_controller(array_command_controller) {}
+
+	bool updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS],
+			   unsigned num_outputs, unsigned num_control_groups_updated) override;
+
+	MixingOutput &mixingOutput() { return _mixing_output; }
+
+protected:
+	void Run() override;
+private:
+	friend class UavcanNode;
+	pthread_mutex_t &_node_mutex;
+	UavcanArrayCommandController &_array_command_controller;
+	MixingOutput _mixing_output{"UAVCAN_AC", UavcanArrayCommandController::MAX_ACTUATORS, *this, MixingOutput::SchedulingPolicy::Auto, false, false};
 };
 
 /**
@@ -229,8 +254,13 @@ private:
 	UavcanBeepController		_beep_controller;
 	UavcanEscController		_esc_controller;
 	UavcanServoController		_servo_controller;
+	UavcanArrayCommandController 	_array_command_controller;
+
 	UavcanMixingInterfaceESC 	_mixing_interface_esc{_node_mutex, _esc_controller};
 	UavcanMixingInterfaceServo 	_mixing_interface_servo{_node_mutex, _servo_controller};
+
+	UavcanMixingInterfaceArrayCommand _mixing_interface_array_command{_node_mutex, _array_command_controller};
+
 	UavcanHardpointController	_hardpoint_controller;
 	UavcanSafetyState         	_safety_state_controller;
 	UavcanLogMessage                _log_message_controller;

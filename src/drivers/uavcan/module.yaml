@@ -1,4 +1,47 @@
+__max_num_dronecan_motors: &max_num_dronecan_motors 8
+
 module_name: UAVCAN
+parameters:
+- group: UAVCAN
+  definitions:
+    UAVCAN_ESC_IFAC:
+      description:
+        short: Which CAN interfaces to output ESC messages on.
+        long: |
+          Since ESC messages are high priority and sent at a high rate, it is
+          recommended to only enable the interfaces that are actually used.
+          Otherwise, the ESC messages will arbitrate lower priority messages and
+          starve other nodes on the bus.
+      type: bitmask
+      bit:
+        0: CAN1
+        1: CAN2
+        2: CAN3
+        3: CAN4
+        4: CAN5
+        5: CAN6
+        6: CAN7
+        7: CAN8
+      default: 255
+      min: 1
+      max: 255
+      reboot_required: true
+    UAVCAN_CMD_ID${i}:
+      description:
+        short: The ID of actuator command ${i}
+      type: int32
+      num_instances: *max_num_dronecan_motors
+      min: 0
+      max: 255
+      default: 255
+    UAVCAN_CMD_TYPE${i}:
+      description:
+        short: The type of actuator command ${i}
+      type: int32
+      num_instances: *max_num_dronecan_motors
+      min: 0
+      max: 6
+      default: 0
 actuator_output:
   show_subgroups_if: 'UAVCAN_ENABLE>=3'
   config_parameters:
@@ -22,6 +65,14 @@ actuator_output:
       standard_params:
         disarmed: { min: 0, max: 1000, default: 500 }
         min: { min: 0, max: 1000, default: 0 }
+        max: { min: 0, max: 1000, default: 1000 }
+        failsafe: { min: 0, max: 1000 }
+      num_channels: 8
+    - param_prefix: UAVCAN_AC
+      group_label: 'Actuator Commands'
+      channel_label: 'Actuator Command'
+      standard_params:
+        min: { min: 0, max: 1000, default: 1 }
         max: { min: 0, max: 1000, default: 1000 }
         failsafe: { min: 0, max: 1000 }
       num_channels: 8
