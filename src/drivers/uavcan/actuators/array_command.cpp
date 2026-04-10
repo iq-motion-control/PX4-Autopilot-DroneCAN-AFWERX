@@ -51,14 +51,14 @@ UavcanArrayCommandController::init()
 	char param_name[17];
 
 	//Grab the IDs
-	for (unsigned i = 0; i < 8; ++i) {
-		snprintf(param_name, sizeof(param_name), "UAVCAN_CMD_ID%d", i + 1);
+	for (unsigned i = 0; i < MAX_ACTUATORS; ++i) {
+		snprintf(param_name, sizeof(param_name), "UAVCAN_CMD_ID%d", i);
 		_param_handles[i] = param_find(param_name);
 	}
 
 	//Grab the functions
 	for (unsigned i = 0; i < MAX_ACTUATORS; ++i) {
-		snprintf(param_name, sizeof(param_name), "UAVCAN_CMD_TYPE%d", i + 1);
+		snprintf(param_name, sizeof(param_name), "UAVCAN_TYPE%d", i);
 		_array_function_handles[i] = param_find(param_name);
 	}
 }
@@ -68,30 +68,87 @@ UavcanArrayCommandController::init()
 void
 UavcanArrayCommandController::update_outputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS], unsigned num_outputs)
 {
-	uavcan::equipment::actuator::ArrayCommand msg;
+	uavcan::equipment::actuator::ArrayCommand msg1;
+	uavcan::equipment::actuator::ArrayCommand msg2;
 
+	if(num_outputs == 16) {
+		uint16_t first_array_command = 14;
+		uint16_t second_array_command = 16;
 
-	for (unsigned i = 0; i < num_outputs; ++i) {
-		uavcan::equipment::actuator::Command cmd;
+		for(uint16_t i = 0; i < first_array_command; i++) {
+			uavcan::equipment::actuator::Command cmd;
 
-		//Find which ID this index goes with
-		int32_t output_id;
-		param_get(_param_handles[i], &output_id);
+			//Find which ID this index goes with
+			int32_t output_id;
+			param_get(_param_handles[i], &output_id);
 
-		if(output_id < 255){
-			cmd.actuator_id = output_id;
+			// modify here
 
-			//Figure out what type of Command this should be
-			int32_t actuator_command_config;
-			param_get(_array_function_handles[i], &actuator_command_config);
-			cmd.command_type = actuator_command_config;
+			// my idea would be to make an array of ArrayCommands and then we loop through the full array of stuff, then we broadcast it out
 
-			cmd.command_value = (float)outputs[i] / 1000.0f; // [0, 1]
+			if(output_id < 255){
+				cmd.actuator_id = output_id;
 
-			msg.commands.push_back(cmd);
+				//Figure out what type of Command this should be
+				int32_t actuator_command_config;
+				param_get(_array_function_handles[i], &actuator_command_config);
+				cmd.command_type = actuator_command_config;
+
+				cmd.command_value = (float)outputs[i] / 1000.0f; // [0, 1]
+
+				msg1.commands.push_back(cmd);
+			}
+
 		}
 
+		for(uint16_t i = 14; i < second_array_command; i++) {
+			uavcan::equipment::actuator::Command cmd;
+
+			//Find which ID this index goes with
+			int32_t output_id;
+			param_get(_param_handles[i], &output_id);
+
+			if(output_id < 255){
+				cmd.actuator_id = output_id;
+
+				//Figure out what type of Command this should be
+				int32_t actuator_command_config;
+				param_get(_array_function_handles[i], &actuator_command_config);
+				cmd.command_type = actuator_command_config;
+
+				cmd.command_value = (float)outputs[i] / 1000.0f; // [0, 1]
+
+				msg2.commands.push_back(cmd);
+			}
+		}
 	}
 
-	_uavcan_pub_array_cmd.broadcast(msg);
+	// for (unsigned i = 0; i < num_outputs; ++i) {
+	// 	uavcan::equipment::actuator::Command cmd;
+
+	// 	//Find which ID this index goes with
+	// 	int32_t output_id;
+	// 	param_get(_param_handles[i], &output_id);
+
+	// 	// modify here
+
+	// 	// my idea would be to make an array of ArrayCommands and then we loop through the full array of stuff, then we broadcast it out
+
+	// 	if(output_id < 255){
+	// 		cmd.actuator_id = output_id;
+
+	// 		//Figure out what type of Command this should be
+	// 		int32_t actuator_command_config;
+	// 		param_get(_array_function_handles[i], &actuator_command_config);
+	// 		cmd.command_type = actuator_command_config;
+
+	// 		cmd.command_value = (float)outputs[i] / 1000.0f; // [0, 1]
+
+	// 		msg.commands.push_back(cmd);
+	// 	}
+
+	// }
+
+	_uavcan_pub_array_cmd.broadcast(msg1);
+	_uavcan_pub_array_cmd.broadcast(msg2);
 }

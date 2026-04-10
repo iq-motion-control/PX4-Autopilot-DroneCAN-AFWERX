@@ -1044,6 +1044,8 @@ UavcanNode::print_info()
 	_mixing_interface_esc.mixingOutput().printStatus();
 	printf("Servo outputs:\n");
 	_mixing_interface_servo.mixingOutput().printStatus();
+	printf("Pulsing outputs:\n");
+	_mixing_interface_array_command.mixingOutput().printStatus();
 
 	printf("\n");
 

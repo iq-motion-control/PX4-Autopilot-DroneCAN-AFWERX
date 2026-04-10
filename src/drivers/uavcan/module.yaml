@@ -1,4 +1,4 @@
-__max_num_dronecan_motors: &max_num_dronecan_motors 8
+__max_num_dronecan_motors: &max_num_dronecan_motors 16
 
 module_name: UAVCAN
 parameters:
@@ -34,7 +34,7 @@ parameters:
       min: 0
       max: 255
       default: 255
-    UAVCAN_CMD_TYPE${i}:
+    UAVCAN_TYPE${i}:
       description:
         short: The type of actuator command ${i}
       type: int32
@@ -75,4 +75,4 @@ actuator_output:
         min: { min: 0, max: 1000, default: 1 }
         max: { min: 0, max: 1000, default: 1000 }
         failsafe: { min: 0, max: 1000 }
-      num_channels: 8
+      num_channels: 16
